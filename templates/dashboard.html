@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIEM Enterprise - Advanced Threat Detection</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --bg-primary: #0a0e27;
+            --bg-secondary: #1a1f3a;
+            --bg-card: rgba(255,255,255,0.05);
+            --border-color: rgba(255,255,255,0.1);
+            --text-primary: #ffffff;
+            --text-secondary: #9ca3af;
+            --accent: #00d4ff;
+            --accent-dark: #0284c7;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --success: #10b981;
+            --purple: #7c3aed;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-primary); }
+        ::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
+        
+        .header {
+            background: var(--bg-secondary);
+            padding: 15px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--accent);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        
+        .logo h1 {
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 24px;
+        }
+        
+        .logo p { font-size: 11px; color: var(--text-secondary); }
+        
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--success);
+            animation: pulse-dot 2s infinite;
+        }
+        
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: rgba(0,212,255,0.1);
+            padding: 6px 15px;
+            border-radius: 20px;
+        }
+        
+        .logout-btn {
+            background: var(--danger);
+            padding: 5px 15px;
+            border-radius: 15px;
+            text-decoration: none;
+            color: white;
+            font-size: 12px;
+            transition: 0.3s;
+        }
+        .logout-btn:hover { opacity: 0.8; transform: scale(1.05); }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 15px;
+            padding: 20px;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 18px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            transition: all 0.3s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            background: rgba(255,255,255,0.08);
+            border-color: var(--accent);
+        }
+        
+        .stat-card .icon { font-size: 24px; margin-bottom: 5px; }
+        
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .stat-value.danger { 
+            background: linear-gradient(135deg, var(--danger), #dc2626);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .stat-value.success {
+            background: linear-gradient(135deg, var(--success), #059669);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .stat-label { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+        
+        .attack-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+            padding: 0 20px 20px 20px;
+        }
+        
+        .attack-stat {
+            background: var(--bg-card);
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+        }
+        
+        .attack-stat .count { font-size: 20px; font-weight: bold; }
+        .attack-stat .label { font-size: 10px; color: var(--text-secondary); }
+        .attack-stat .bar {
+            height: 3px;
+            border-radius: 2px;
+            margin-top: 5px;
+            background: var(--bg-secondary);
+        }
+        .attack-stat .bar .fill {
+            height: 100%;
+            border-radius: 2px;
+            background: var(--accent);
+        }
+        
+        .filter-bar {
+            background: var(--bg-card);
+            margin: 0 20px 20px 20px;
+            padding: 12px 15px;
+            border-radius: 10px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+            border: 1px solid var(--border-color);
+        }
+        
+        select, input {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+        
+        select:focus, input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        
+        .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+        .btn {
+            padding: 6px 14px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 11px;
+            transition: all 0.3s;
+        }
+        .btn:hover { transform: scale(1.05); }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-warning { background: var(--warning); color: white; }
+        .btn-info { background: var(--accent); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-purple { background: var(--purple); color: white; }
+        
+        .main-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            padding: 0 20px 20px 20px;
+        }
+        
+        .panel {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .panel-title { 
+            color: var(--accent); 
+            font-weight: bold; 
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .panel-badge {
+            font-size: 10px;
+            background: var(--bg-primary);
+            padding: 2px 10px;
+            border-radius: 10px;
+            color: var(--text-secondary);
+        }
+        
+        .alert-list { 
+            max-height: 320px; 
+            overflow-y: auto; 
+        }
+        
+        .alert-item {
+            background: var(--bg-primary);
+            border-left: 4px solid;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            transition: 0.2s;
+            animation: slideInAlert 0.3s ease;
+        }
+        
+        @keyframes slideInAlert {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        .alert-item:hover { background: rgba(255,255,255,0.05); }
+        
+        .alert-item .alert-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .alert-item .alert-type {
+            font-weight: bold;
+            font-size: 13px;
+        }
+        
+        .alert-item .severity-badge {
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 9px;
+            font-weight: bold;
+        }
+        
+        .severity-CRITICAL { background: var(--danger); color: white; }
+        .severity-HIGH { background: #dc2626; color: white; }
+        .severity-MEDIUM { background: var(--warning); color: black; }
+        .severity-LOW { background: var(--success); color: white; }
+        
+        .alert-item .alert-message {
+            font-size: 11px;
+            margin-top: 4px;
+            color: var(--text-secondary);
+        }
+        
+        .alert-item .alert-footer {
+            display: flex;
+            justify-content: space-between;
+            font-size: 9px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        
+        .live-feed {
+            height: 120px;
+            overflow-y: auto;
+            background: var(--bg-primary);
+            padding: 10px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+        }
+        .live-feed .feed-entry {
+            padding: 4px 0;
+            border-bottom: 1px solid var(--border-color);
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+        
+        .chart-container { height: 180px; margin-top: 5px; }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .metric-item {
+            background: var(--bg-primary);
+            padding: 8px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .metric-item .value { font-size: 18px; font-weight: bold; color: var(--accent); }
+        .metric-item .label { font-size: 9px; color: var(--text-secondary); }
+        
+        .notification-toast {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: var(--bg-secondary);
+            border-left: 4px solid var(--danger);
+            padding: 12px 18px;
+            border-radius: 8px;
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            max-width: 350px;
+            font-size: 13px;
+        }
+        .notification-toast.success { border-left-color: var(--success); }
+        .notification-toast.warning { border-left-color: var(--warning); }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .info-text {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-secondary);
+            font-size: 13px;
+            line-height: 1.8;
+        }
+        
+        .info-text .emoji { font-size: 24px; display: block; margin-bottom: 10px; }
+        
+        .packet-table {
+            width: 100%;
+            font-size: 10px;
+            border-collapse: collapse;
+        }
+        .packet-table th {
+            text-align: left;
+            padding: 5px 4px;
+            color: var(--text-secondary);
+            font-size: 9px;
+            position: sticky;
+            top: 0;
+            background: var(--bg-primary);
+            border-bottom: 2px solid var(--accent);
+        }
+        .packet-table td {
+            padding: 4px 4px;
+            border-bottom: 1px solid var(--border-color);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100px;
+        }
+        .packet-table tr {
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .packet-table tr:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        .packet-table .threat-normal { color: #10b981; }
+        .packet-table .threat-warning { color: #f59e0b; }
+        .packet-table .threat-danger { color: #ef4444; }
+        
+        .packet-scroll {
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        
+        .packet-stats {
+            font-size: 10px;
+            color: var(--text-secondary);
+            margin-top: 5px;
+            padding: 5px;
+            background: var(--bg-primary);
+            border-radius: 4px;
+        }
+        
+        @media (max-width: 768px) {
+            .main-grid { grid-template-columns: 1fr; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .attack-stats-grid { grid-template-columns: repeat(3, 1fr); }
+            .header { flex-direction: column; gap: 10px; }
+            .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">
+            <h1>🛡️ SIEM Enterprise</h1>
+            <p>Advanced Threat Detection & Response</p>
+        </div>
+        <div class="header-right">
+            <div class="status-indicator">
+                <span class="status-dot"></span>
+                <span>System Online</span>
+            </div>
+            <div class="user-info">
+                <span>👤 {{ session.username }}</span>
+                <span style="font-size:10px; color:var(--text-secondary);">🔐 SHA-256</span>
+                <a href="/logout" class="logout-btn">Logout</a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Stats -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="icon">🚨</div>
+            <div class="stat-value" id="totalAlerts">0</div>
+            <div class="stat-label">Total Alerts</div>
+        </div>
+        <div class="stat-card">
+            <div class="icon">🔥</div>
+            <div class="stat-value danger" id="criticalAlerts">0</div>
+            <div class="stat-label">Critical Threats</div>
+        </div>
+        <div class="stat-card">
+            <div class="icon">🛡️</div>
+            <div class="stat-value success" id="integrityScore">0%</div>
+            <div class="stat-label">Log Integrity</div>
+        </div>
+        <div class="stat-card">
+            <div class="icon">📡</div>
+            <div class="stat-value" id="packetCount">0</div>
+            <div class="stat-label">Live Packets</div>
+        </div>
+        <div class="stat-card">
+            <div class="icon">💻</div>
+            <div class="stat-value" id="cpuUsage">0%</div>
+            <div class="stat-label">CPU Usage</div>
+        </div>
+        <div class="stat-card">
+            <div class="icon">🧠</div>
+            <div class="stat-value" id="memoryUsage">0%</div>
+            <div class="stat-label">Memory Usage</div>
+        </div>
+    </div>
+    
+    <!-- Attack Stats -->
+    <div class="attack-stats-grid" id="attackStatsGrid">
+        <div class="attack-stat">
+            <div class="count" id="bfCount">0</div>
+            <div class="label">Brute Force</div>
+            <div class="bar"><div class="fill" id="bfBar" style="width:0%"></div></div>
+        </div>
+        <div class="attack-stat">
+            <div class="count" id="sqlCount">0</div>
+            <div class="label">SQL Injection</div>
+            <div class="bar"><div class="fill" id="sqlBar" style="width:0%"></div></div>
+        </div>
+        <div class="attack-stat">
+            <div class="count" id="xssCount">0</div>
+            <div class="label">XSS Attacks</div>
+            <div class="bar"><div class="fill" id="xssBar" style="width:0%"></div></div>
+        </div>
+        <div class="attack-stat">
+            <div class="count" id="portScanCount">0</div>
+            <div class="label">Port Scans</div>
+            <div class="bar"><div class="fill" id="portScanBar" style="width:0%"></div></div>
+        </div>
+        <div class="attack-stat">
+            <div class="count" id="pathCount">0</div>
+            <div class="label">Path Traversal</div>
+            <div class="bar"><div class="fill" id="pathBar" style="width:0%"></div></div>
+        </div>
+    </div>
+    
+    <!-- Live Attack Feed -->
+    <div class="panel" style="margin: 0 20px 20px 20px;">
+        <div class="panel-header">
+            <span class="panel-title">🔴 LIVE ATTACK FEED</span>
+            <span id="feedStatus" style="font-size:11px; color:var(--success);">🟢 Monitoring</span>
+        </div>
+        <div id="attackFeed" class="live-feed">
+            <div class="feed-entry">🟢 SIEM Enterprise active - Monitoring for threats...</div>
+            <div class="feed-entry">💡 Test by entering wrong password 5 times</div>
+        </div>
+    </div>
+    
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+        <span style="font-size:12px; color:var(--text-secondary);">🔍 Filter:</span>
+        <select id="severityFilter">
+            <option value="all">All Severities</option>
+            <option value="HIGH">🔥 Critical/High</option>
+            <option value="MEDIUM">⚠️ Medium</option>
+            <option value="LOW">ℹ️ Low</option>
+        </select>
+        <input type="text" id="ipFilter" placeholder="Filter by IP" style="width:120px">
+        <select id="protocolFilter">
+            <option value="all">All Protocols</option>
+            <option value="TCP">TCP</option>
+            <option value="UDP">UDP</option>
+            <option value="DNS">DNS</option>
+            <option value="ICMP">ICMP</option>
+        </select>
+        <div class="btn-group">
+            <button class="btn btn-danger" onclick="clearFilters()">✕ Clear</button>
+            <button class="btn btn-success" onclick="exportCSV()">📊 Export CSV</button>
+            <button class="btn btn-purple" onclick="exportJSON()">📄 Export JSON</button>
+            <button class="btn btn-info" onclick="exportReport()">📑 Full Report</button>
+        </div>
+    </div>
+    
+    <!-- Main Grid -->
+    <div class="main-grid">
+        <!-- Alerts Panel -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">🚨 Security Alerts</span>
+                <span class="panel-badge" id="alertCount">0</span>
+            </div>
+            <div id="alertList" class="alert-list">
+                <div class="info-text">
+                    <span class="emoji">🛡️</span>
+                    No alerts detected yet.<br><br>
+                    🔐 To test Brute Force Detection:<br>
+                    1. Go to Login page<br>
+                    2. Enter wrong password 5 times<br>
+                    3. Watch alerts appear here!
+                </div>
+            </div>
+        </div>
+        
+        <!-- Chart -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">📈 Threat Trend</span>
+                <span style="font-size:10px; color:var(--text-secondary);">Last 50 events</span>
+            </div>
+            <div id="trendChart" class="chart-container"></div>
+            <div class="integrity-bar" style="background:var(--bg-primary); border-radius:8px; height:4px; margin:8px 0;">
+                <div id="integrityFill" style="background:linear-gradient(90deg, var(--success), var(--accent)); height:100%; border-radius:8px; width:0%;"></div>
+            </div>
+            <div id="integrityInfo" style="font-size:10px; color:var(--text-secondary);"></div>
+        </div>
+        
+        <!-- Packets Panel -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">📡 Live Packets</span>
+                <span class="panel-badge" id="captureStatus">⏹ Stopped</span>
+            </div>
+            
+            <div class="packet-scroll">
+                <table class="packet-table">
+                    <thead>
+                        <tr>
+                            <th style="width:60px;">Time</th>
+                            <th style="width:80px;">Source</th>
+                            <th style="width:80px;">Dest</th>
+                            <th style="width:45px;">Proto</th>
+                            <th style="width:35px;">SrcP</th>
+                            <th style="width:35px;">DstP</th>
+                            <th style="width:70px;">Threat</th>
+                            <th style="width:45px;">Flags</th>
+                        </tr>
+                    </thead>
+                    <tbody id="packetBody">
+                        <tr><td colspan="8" style="padding:20px; text-align:center; color:var(--text-secondary);">
+                            No packets captured<br>
+                            <small>Click "Start Capture" to begin</small>
+                        </td></tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="packet-stats" id="packetProtocolStats">
+                📊 No packets yet
+            </div>
+            
+            <div class="btn-group" style="margin-top:10px;">
+                <button class="btn btn-info" onclick="startCapture()">▶ Start Capture</button>
+                <button class="btn btn-warning" onclick="stopCapture()">⏹ Stop</button>
+                <select id="captureInterface" style="background:var(--bg-primary);border:1px solid var(--border-color);color:white;padding:5px 10px;border-radius:6px;font-size:11px;">
+                    <option value="any">Any Interface</option>
+                    <option value="lo">Loopback</option>
+                    <option value="eth0">Ethernet</option>
+                    <option value="wlan0">Wi-Fi</option>
+                </select>
+                <button class="btn btn-purple" onclick="runNmap()">🔍 Scan localhost</button>
+            </div>
+            <div id="scanResult" style="font-size:11px; margin-top:8px; background:var(--bg-primary); padding:8px; border-radius:6px; color:var(--text-secondary);"></div>
+        </div>
+        
+        <!-- System Metrics -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">🖥️ System Status</span>
+                <span style="font-size:10px; color:var(--text-secondary);">Live</span>
+            </div>
+            <div class="metrics-grid">
+                <div class="metric-item">
+                    <div class="value" id="metricCpu">0%</div>
+                    <div class="label">CPU</div>
+                </div>
+                <div class="metric-item">
+                    <div class="value" id="metricMemory">0%</div>
+                    <div class="label">Memory</div>
+                </div>
+                <div class="metric-item">
+                    <div class="value" id="metricDisk">0%</div>
+                    <div class="label">Disk</div>
+                </div>
+                <div class="metric-item">
+                    <div class="value" id="metricConnections">0</div>
+                    <div class="label">Connections</div>
+                </div>
+                <div class="metric-item">
+                    <div class="value" id="metricProcesses">0</div>
+                    <div class="label">Processes</div>
+                </div>
+                <div class="metric-item">
+                    <div class="value" id="metricUptime">0h</div>
+                    <div class="label">Uptime</div>
+                </div>
+            </div>
+            <div style="font-size:11px; line-height:1.8; margin-top:10px; padding-top:10px; border-top:1px solid var(--border-color); color:var(--text-secondary);">
+                <div>🔐 SHA-256: <span style="color:var(--success);">Active</span></div>
+                <div>🚨 Brute Force: <span style="color:var(--accent);">Active</span></div>
+                <div>📡 Packet Capture: <span id="captureState" style="color:var(--text-secondary);">⏹ Stopped</span></div>
+                <div>🔍 Nmap Scanner: <span style="color:var(--success);">Ready</span></div>
+                <div id="systemInfo"></div>
+                <div id="livePacketCount" style="color:var(--accent);"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const socket = io();
+        let trendChart = null;
+        let allAlerts = [];
+        let captureRunning = false;
+        let packetList = [];
+        
+        // Initialize ApexChart
+        function initChart() {
+            const options = {
+                chart: {
+                    type: 'area',
+                    height: 180,
+                    background: 'transparent',
+                    foreColor: '#9ca3af',
+                    animations: {
+                        enabled: true,
+                        dynamicAnimation: {
+                            speed: 1000
+                        }
+                    }
+                },
+                series: [{
+                    name: 'Threat Level',
+                    data: [0]
+                }],
+                xaxis: {
+                    categories: ['Now'],
+                    labels: { style: { colors: '#6b7280', fontSize: '10px' } }
+                },
+                yaxis: {
+                    labels: { style: { colors: '#6b7280', fontSize: '10px' } }
+                },
+                fill: {
+                    type: 'gradient',
+                    gradient: {
+                        shadeIntensity: 1,
+                        opacityFrom: 0.7,
+                        opacityTo: 0.3,
+                        stops: [0, 90, 100]
+                    }
+                },
+                stroke: {
+                    curve: 'smooth',
+                    width: 2,
+                    colors: ['#00d4ff']
+                },
+                grid: {
+                    borderColor: 'rgba(255,255,255,0.05)',
+                },
+                tooltip: {
+                    theme: 'dark'
+                }
+            };
+            
+            trendChart = new ApexCharts(document.getElementById('trendChart'), options);
+            trendChart.render();
+        }
+        
+        function showNotification(message, type = 'danger') {
+            const toast = document.createElement('div');
+            toast.className = `notification-toast ${type}`;
+            toast.innerHTML = `<strong>${type === 'danger' ? '🚨' : '⚠️'} Alert:</strong><br>${message}`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 5000);
+        }
+        
+        // ============= ALERTS FUNCTIONS =============
+        
+        async function loadAlerts() {
+            try {
+                const res = await fetch('/api/alerts');
+                const data = await res.json();
+                
+                // Handle different response formats
+                if (data.alerts) {
+                    allAlerts = data.alerts;
+                } else if (Array.isArray(data)) {
+                    allAlerts = data;
+                } else {
+                    allAlerts = [];
+                }
+                
+                // Update alert count badge
+                document.getElementById('alertCount').innerText = allAlerts.length;
+                
+                // Update stats
+                updateAlertStats();
+                
+                // Render alerts
+                renderAlerts(allAlerts);
+                
+            } catch(e) { 
+                console.error('Error loading alerts:', e);
+                allAlerts = [];
+                document.getElementById('alertCount').innerText = '0';
+                renderAlerts([]);
+            }
+        }
+        
+        function renderAlerts(alerts) {
+            const container = document.getElementById('alertList');
+            
+            if (!alerts || alerts.length === 0) {
+                container.innerHTML = `
+                    <div class="info-text">
+                        <span class="emoji">🛡️</span>
+                        No alerts detected yet.<br><br>
+                        🔐 To test Brute Force Detection:<br>
+                        1. Go to Login page<br>
+                        2. Enter wrong password 5 times<br>
+                        3. Watch alerts appear here!
+                    </div>
+                `;
+                return;
+            }
+            
+            // Apply filters
+            const severity = document.getElementById('severityFilter').value;
+            const ip = document.getElementById('ipFilter').value.toLowerCase();
+            
+            let filtered = alerts;
+            if (severity !== 'all') {
+                filtered = filtered.filter(a => a.severity === severity);
+            }
+            if (ip) {
+                filtered = filtered.filter(a => a.source && a.source.toLowerCase().includes(ip));
+            }
+            
+            // Update count
+            document.getElementById('alertCount').innerText = filtered.length;
+            
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="info-text">
+                        <span class="emoji">🔍</span>
+                        No alerts match your filters.
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = filtered.slice(0, 25).map(a => {
+                const severityColor = a.severity === 'CRITICAL' ? '#ef4444' : 
+                                     a.severity === 'HIGH' ? '#dc2626' : 
+                                     a.severity === 'MEDIUM' ? '#f59e0b' : '#10b981';
+                return `
+                    <div class="alert-item" style="border-color: ${severityColor};">
+                        <div class="alert-header">
+                            <span class="alert-type">${a.type || 'Unknown'}</span>
+                            <span class="severity-badge severity-${a.severity || 'LOW'}">${a.severity || 'LOW'}</span>
+                        </div>
+                        <div class="alert-message">${(a.message || '').substring(0, 120)}</div>
+                        <div class="alert-footer">
+                            <span>📍 ${a.source || 'unknown'}</span>
+                            <span>${a.timestamp ? new Date(a.timestamp).toLocaleString() : ''}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function updateAlertStats() {
+            const alerts = allAlerts || [];
+            document.getElementById('totalAlerts').innerText = alerts.length;
+            
+            const critical = alerts.filter(a => a.severity === 'CRITICAL' || a.severity === 'HIGH').length;
+            document.getElementById('criticalAlerts').innerText = critical;
+        }
+        
+        function applyFilters() {
+            renderAlerts(allAlerts);
+        }
+        
+        // ============= SOCKET EVENTS =============
+        
+        socket.on('connect', () => { 
+            console.log('✅ Connected to SIEM server');
+            loadData(); 
+            loadLiveFeed();
+            loadAlerts();
+            checkCaptureStatus();
+        });
+        
+        socket.on('new_alert', (data) => { 
+            console.log('🔔 New alert received:', data);
+            
+            if (data) {
+                const newAlert = {
+                    type: data.type || 'Unknown',
+                    severity: data.severity || 'LOW',
+                    message: data.message || 'Alert received',
+                    source: data.source || 'unknown',
+                    timestamp: data.timestamp || new Date().toISOString()
+                };
+                
+                // Add to beginning of alerts
+                allAlerts.unshift(newAlert);
+                if (allAlerts.length > 100) {
+                    allAlerts.pop();
+                }
+                
+                renderAlerts(allAlerts);
+                updateAlertStats();
+                loadData();
+                loadLiveFeed();
+                
+                if (data.severity === 'CRITICAL' || data.severity === 'HIGH') {
+                    showNotification(data.message || 'Critical alert!', 'danger');
+                } else if (data.severity === 'MEDIUM') {
+                    showNotification(data.message || 'Medium alert', 'warning');
+                }
+            }
+        });
+        
+        socket.on('capture_done', () => { 
+            loadPackets(); 
+            loadData(); 
+            document.getElementById('captureStatus').innerHTML = '✅ Done';
+            document.getElementById('captureState').innerHTML = '✅ Ready';
+            captureRunning = false;
+        });
+        
+        socket.on('system_metrics', (data) => {
+            document.getElementById('cpuUsage').innerText = Math.round(data.cpu_percent || 0) + '%';
+            document.getElementById('memoryUsage').innerText = Math.round(data.memory_percent || 0) + '%';
+            document.getElementById('metricCpu').innerText = Math.round(data.cpu_percent || 0) + '%';
+            document.getElementById('metricMemory').innerText = Math.round(data.memory_percent || 0) + '%';
+            document.getElementById('metricDisk').innerText = Math.round(data.disk_usage || 0) + '%';
+            document.getElementById('metricConnections').innerText = data.connections || 0;
+            document.getElementById('metricProcesses').innerText = data.process_count || 0;
+            
+            const uptime = data.uptime || 0;
+            const hours = Math.floor(uptime / 3600);
+            const minutes = Math.floor((uptime % 3600) / 60);
+            document.getElementById('metricUptime').innerText = `${hours}h ${minutes}m`;
+        });
+        
+        socket.on('capture_error', (data) => {
+            showNotification(`Capture error: ${data.error}`, 'danger');
+            document.getElementById('captureStatus').innerHTML = '❌ Error';
+            captureRunning = false;
+        });
+        
+        socket.on('new_packet', function(data) {
+            const packet = data.packet;
+            if (!packet) return;
+            
+            packetList.unshift(packet);
+            if (packetList.length > 100) packetList.pop();
+            
+            addPacketToTable(packet);
+            updatePacketStats();
+            updateLivePacketCount();
+        });
+        
+        // ============= DATA LOADING =============
+        
+        async function loadData() {
+            try {
+                const res = await fetch('/api/stats');
+                const data = await res.json();
+                
+                if (data.stats) {
+                    document.getElementById('totalAlerts').innerText = data.stats.total_alerts || 0;
+                    document.getElementById('criticalAlerts').innerText = data.stats.active_threats || 0;
+                    document.getElementById('packetCount').innerText = data.packet_stats?.total || packetList.length || 0;
+                }
+                
+                if (data.integrity) {
+                    document.getElementById('integrityScore').innerText = data.integrity.integrity_percentage || 0;
+                    document.getElementById('integrityFill').style.width = (data.integrity.integrity_percentage || 0) + '%';
+                    document.getElementById('integrityInfo').innerHTML = 
+                        `✅ Verified: ${data.integrity.verified || 0} | ⚠️ Tampered: ${data.integrity.tampered || 0}`;
+                }
+                
+                if (data.attack_stats) {
+                    const stats = data.attack_stats;
+                    const maxVal = Math.max(Object.values(stats).filter(v => typeof v === 'number') || [1]);
+                    const safeMax = Math.max(maxVal, 1);
+                    
+                    document.getElementById('bfCount').innerText = stats.bruteforce || 0;
+                    document.getElementById('sqlCount').innerText = stats.sql_injection || 0;
+                    document.getElementById('xssCount').innerText = stats.xss || 0;
+                    document.getElementById('portScanCount').innerText = stats.port_scan || 0;
+                    document.getElementById('pathCount').innerText = stats.path_traversal || 0;
+                    
+                    document.getElementById('bfBar').style.width = `${((stats.bruteforce || 0) / safeMax * 100)}%`;
+                    document.getElementById('sqlBar').style.width = `${((stats.sql_injection || 0) / safeMax * 100)}%`;
+                    document.getElementById('xssBar').style.width = `${((stats.xss || 0) / safeMax * 100)}%`;
+                    document.getElementById('portScanBar').style.width = `${((stats.port_scan || 0) / safeMax * 100)}%`;
+                    document.getElementById('pathBar').style.width = `${((stats.path_traversal || 0) / safeMax * 100)}%`;
+                }
+                
+                if (data.system_metrics) {
+                    const m = data.system_metrics;
+                    document.getElementById('cpuUsage').innerText = Math.round(m.cpu_percent || 0) + '%';
+                    document.getElementById('memoryUsage').innerText = Math.round(m.memory_percent || 0) + '%';
+                    document.getElementById('metricCpu').innerText = Math.round(m.cpu_percent || 0) + '%';
+                    document.getElementById('metricMemory').innerText = Math.round(m.memory_percent || 0) + '%';
+                    document.getElementById('metricDisk').innerText = Math.round(m.disk_usage || 0) + '%';
+                    document.getElementById('metricConnections').innerText = m.connections || 0;
+                    document.getElementById('metricProcesses').innerText = m.process_count || 0;
+                    
+                    const uptime = m.uptime || 0;
+                    const hours = Math.floor(uptime / 3600);
+                    const minutes = Math.floor((uptime % 3600) / 60);
+                    document.getElementById('metricUptime').innerText = `${hours}h ${minutes}m`;
+                    document.getElementById('systemInfo').innerHTML = `🖥️ ${m.system || 'Unknown'} | ${m.platform || ''}`;
+                }
+                
+                if (data.traffic && data.traffic.length > 0) {
+                    const labels = data.traffic.map(t => t.time);
+                    const values = data.traffic.map(t => t.value);
+                    
+                    if (trendChart) {
+                        try {
+                            trendChart.updateSeries([{ data: values }]);
+                            trendChart.updateOptions({ xaxis: { categories: labels } });
+                        } catch(e) {
+                            console.log('Chart update error:', e);
+                        }
+                    }
+                }
+                
+            } catch(e) { 
+                console.error('Error loading data:', e);
+            }
+        }
+        
+        // ============= LIVE FEED =============
+        
+        async function loadLiveFeed() {
+            try {
+                const res = await fetch('/api/live-feed');
+                const feed = await res.json();
+                const feedDiv = document.getElementById('attackFeed');
+                if (feedDiv && feed.length > 0) {
+                    feedDiv.innerHTML = feed.map(f => `<div class="feed-entry">${f}</div>`).join('');
+                    feedDiv.scrollTop = feedDiv.scrollHeight;
+                }
+            } catch(e) { console.error('Error loading live feed:', e); }
+        }
+        
+        // ============= PACKET FUNCTIONS =============
+        
+        function addPacketToTable(packet) {
+            const tbody = document.getElementById('packetBody');
+            if (!tbody) return;
+            
+            const threatClass = packet.threat && packet.threat.includes('🚨') ? 'threat-danger' : 
+                               packet.threat && packet.threat.includes('⚠️') ? 'threat-warning' : 'threat-normal';
+            
+            const time = packet.timestamp ? new Date(packet.timestamp).toLocaleTimeString() : '';
+            
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td style="font-size:9px;white-space:nowrap;">${time}</td>
+                <td style="font-size:9px;" title="${packet.src_ip || '-'}">${packet.src_ip || '-'}</td>
+                <td style="font-size:9px;" title="${packet.dst_ip || '-'}">${packet.dst_ip || '-'}</td>
+                <td style="font-size:9px;font-weight:bold;color:var(--accent);">${packet.protocol || '-'}</td>
+                <td style="font-size:9px;">${packet.src_port || '-'}</td>
+                <td style="font-size:9px;">${packet.dst_port || '-'}</td>
+                <td style="font-size:9px;" class="${threatClass}">${packet.threat || 'Normal'}</td>
+                <td style="font-size:8px;color:#888;">${packet.flags || '-'}</td>
+            `;
+            
+            tbody.insertBefore(tr, tbody.firstChild);
+            while (tbody.children.length > 50) {
+                tbody.removeChild(tbody.lastChild);
+            }
+        }
+        
+        function updatePacketStats() {
+            const count = packetList.length;
+            document.getElementById('packetCount').innerText = count;
+            
+            const protocols = {};
+            packetList.forEach(p => {
+                const proto = p.protocol || 'Unknown';
+                protocols[proto] = (protocols[proto] || 0) + 1;
+            });
+            
+            const statsDiv = document.getElementById('packetProtocolStats');
+            if (statsDiv) {
+                const protoStr = Object.entries(protocols).slice(0, 5)
+                    .map(([proto, count]) => `${proto}: ${count}`).join(' | ');
+                statsDiv.innerHTML = `📊 ${packetList.length} packets | ${protoStr || 'No protocols'}`;
+            }
+        }
+        
+        function updateLivePacketCount() {
+            const element = document.getElementById('livePacketCount');
+            if (element) {
+                element.innerHTML = `📡 Live Packets: ${packetList.length}`;
+            }
+        }
+        
+        function loadPackets() {
+            const protocol = document.getElementById('protocolFilter')?.value || 'all';
+            const tbody = document.getElementById('packetBody');
+            
+            if (!tbody) return;
+            
+            // Show loading state
+            tbody.innerHTML = `
+                <tr><td colspan="8" style="padding:15px; text-align:center; color:var(--text-secondary);">
+                    ⏳ Loading packets...
+                </td></tr>
+            `;
+            
+            fetch(`/api/packets/live?protocol=${protocol}&limit=50`)
+                .then(res => {
+                    if (!res.ok) throw new Error('Live packets not available');
+                    return res.json();
+                })
+                .then(packets => {
+                    if (packets && packets.length > 0) {
+                        packetList = packets;
+                        renderPacketTable(packets);
+                        updatePacketStats();
+                        return;
+                    }
+                    return fetch(`/api/packets?protocol=${protocol}&limit=50`);
+                })
+                .then(res => {
+                    if (res && !res.ok) throw new Error('Packets API failed');
+                    if (res) return res.json();
+                })
+                .then(packets => {
+                    if (packets && packets.length > 0) {
+                        packetList = packets;
+                        renderPacketTable(packets);
+                        updatePacketStats();
+                    } else if (packetList.length === 0) {
+                        renderPacketTable([]);
+                    }
+                })
+                .catch(err => {
+                    console.error('Error loading packets:', err);
+                    if (packetList.length > 0) {
+                        renderPacketTable(packetList.slice(0, 50));
+                        return;
+                    }
+                    tbody.innerHTML = `
+                        <tr><td colspan="8" style="padding:20px; text-align:center; color:#f59e0b;">
+                            ⚠️ ${err.message}<br>
+                            <small style="color:var(--text-secondary);">
+                                Make sure Npcap is installed and capture is running
+                            </small>
+                        </td></tr>
+                    `;
+                });
+        }
+
+        function renderPacketTable(packets) {
+            const tbody = document.getElementById('packetBody');
+            if (!tbody) return;
+            
+            if (!packets || packets.length === 0) {
+                tbody.innerHTML = `
+                    <tr><td colspan="8" style="padding:20px; text-align:center; color:var(--text-secondary);">
+                        No packets captured yet<br>
+                        <small>Click "Start Capture" to begin REAL packet capture</small>
+                    </td></tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = packets.slice(0, 50).map(p => {
+                const threatClass = p.threat && p.threat.includes('🚨') ? 'threat-danger' : 
+                                   p.threat && p.threat.includes('⚠️') ? 'threat-warning' : 'threat-normal';
+                
+                const time = p.timestamp ? new Date(p.timestamp).toLocaleTimeString() : '';
+                
+                return `
+                <tr onclick='showPacketDetail(${JSON.stringify(p)})' style="cursor:pointer;">
+                    <td style="font-size:9px;white-space:nowrap;">${time}</td>
+                    <td style="font-size:9px;" title="${p.src_ip || '-'}">${p.src_ip || '-'}</td>
+                    <td style="font-size:9px;" title="${p.dst_ip || '-'}">${p.dst_ip || '-'}</td>
+                    <td style="font-size:9px;font-weight:bold;color:var(--accent);">${p.protocol || '-'}</td>
+                    <td style="font-size:9px;">${p.src_port || '-'}</td>
+                    <td style="font-size:9px;">${p.dst_port || '-'}</td>
+                    <td style="font-size:9px;" class="${threatClass}">${p.threat || 'Normal'}</td>
+                    <td style="font-size:8px;color:#888;">${p.flags || '-'}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        function showPacketDetail(packet) {
+            alert(`📡 PACKET DETAILS\n\n` +
+                  `⏰ Time: ${packet.timestamp || 'N/A'}\n` +
+                  `📤 Source: ${packet.src_ip || 'N/A'}:${packet.src_port || 'N/A'}\n` +
+                  `📥 Destination: ${packet.dst_ip || 'N/A'}:${packet.dst_port || 'N/A'}\n` +
+                  `🔌 Protocol: ${packet.protocol || 'N/A'}\n` +
+                  `📏 Length: ${packet.length || 'N/A'} bytes\n` +
+                  `🚩 Flags: ${packet.flags || 'N/A'}\n` +
+                  `⚠️ Threat: ${packet.threat || 'Normal'}\n` +
+                  `ℹ️ Info: ${packet.info || 'No additional info'}`);
+        }
+        
+        // ============= CAPTURE FUNCTIONS =============
+        
+        async function startCapture() {
+            if (captureRunning) {
+                showNotification('Capture already running!', 'warning');
+                return;
+            }
+            
+            const interface = document.getElementById('captureInterface')?.value || 'any';
+            document.getElementById('captureStatus').innerHTML = '⏳ Starting...';
+            
+            try {
+                const response = await fetch('/api/capture/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        interface: interface,
+                        count: 100,
+                        timeout: 30
+                    })
+                });
+                const data = await response.json();
+                if (data.status === 'already_running') {
+                    showNotification('Capture already running!', 'warning');
+                    return;
+                }
+                captureRunning = true;
+                document.getElementById('captureStatus').innerHTML = '🟢 Capturing...';
+                document.getElementById('captureState').innerHTML = '🟢 Active';
+                showNotification('✅ Packet capture started!', 'success');
+            } catch(e) {
+                document.getElementById('captureStatus').innerHTML = '❌ Error';
+                showNotification('❌ Failed to start capture: ' + e.message, 'danger');
+                captureRunning = false;
+            }
+        }
+        
+        async function stopCapture() {
+            if (!captureRunning) {
+                showNotification('No capture running', 'warning');
+                return;
+            }
+            try {
+                await fetch('/api/capture/stop', { method: 'POST' });
+                captureRunning = false;
+                document.getElementById('captureStatus').innerHTML = '⏹ Stopped';
+                document.getElementById('captureState').innerHTML = '⏹ Stopped';
+                showNotification('⏹ Packet capture stopped', 'warning');
+            } catch(e) {
+                console.error('Error stopping capture:', e);
+                showNotification('❌ Error stopping capture', 'danger');
+            }
+        }
+        
+        function checkCaptureStatus() {
+            fetch('/api/capture/status')
+                .then(res => res.json())
+                .then(data => {
+                    captureRunning = data.capturing || false;
+                    document.getElementById('captureStatus').innerHTML = data.capturing ? '🟢 Capturing...' : '⏹ Stopped';
+                    document.getElementById('captureState').innerHTML = data.capturing ? '🟢 Active' : '⏹ Stopped';
+                    document.getElementById('packetCount').innerText = data.packet_count || 0;
+                })
+                .catch(err => console.error('Error checking capture status:', err));
+        }
+        
+        // ============= NMAP FUNCTIONS =============
+        
+        async function runNmap() {
+            document.getElementById('scanResult').innerHTML = '🔍 Scanning...';
+            try {
+                const res = await fetch('/api/nmap/scan', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ target: 'localhost' }) 
+                });
+                const data = await res.json();
+                document.getElementById('scanResult').innerHTML = 
+                    `🔍 Open ports: ${data.total_open || 0} | Risk: <span style="color:${data.risk_level === 'HIGH' ? '#ef4444' : '#10b981'};">${data.risk_level}</span>`;
+                if (data.total_open > 0) {
+                    showNotification(`Found ${data.total_open} open ports on localhost`, data.risk_level === 'HIGH' ? 'danger' : 'warning');
+                }
+                loadData();
+            } catch(e) {
+                document.getElementById('scanResult').innerHTML = '❌ Scan failed';
+            }
+        }
+        
+        // ============= EXPORT FUNCTIONS =============
+        
+        function exportReport() { window.location.href = '/api/export'; }
+        function exportCSV() { window.location.href = '/api/export/csv'; }
+        function exportJSON() { window.location.href = '/api/export/json'; }
+        
+        // ============= FILTER FUNCTIONS =============
+        
+        function clearFilters() { 
+            document.getElementById('severityFilter').value = 'all'; 
+            document.getElementById('ipFilter').value = ''; 
+            document.getElementById('protocolFilter').value = 'all';
+            applyFilters(); 
+            loadPackets();
+        }
+        
+        document.getElementById('severityFilter').addEventListener('change', applyFilters);
+        document.getElementById('ipFilter').addEventListener('input', applyFilters);
+        document.getElementById('protocolFilter').addEventListener('change', loadPackets);
+        
+        // ============= INITIALIZATION =============
+        
+        initChart();
+        
+        // Load data on page load
+        loadData();
+        loadAlerts();
+        loadLiveFeed();
+        checkCaptureStatus();
+        loadPackets();
+        
+        // Auto refresh
+        setInterval(() => { 
+            loadData(); 
+            loadLiveFeed(); 
+            loadAlerts();
+        }, 5000);
+        
+        setInterval(loadLiveFeed, 2000);
+        
+        console.log('✅ SIEM Dashboard initialized');
+    </script>
+</body>
+</html>

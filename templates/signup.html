@@ -1,0 +1,312 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up - SIEM Security System</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, rgba(10,14,39,0.3) 0%, rgba(26,31,58,0.3) 100%), url('/static/1.png');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            padding: 20px;
+        }
+        
+        body::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(0,212,255,0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+            animation: moveBackground 20s linear infinite;
+        }
+        
+        @keyframes moveBackground {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(40px, 40px); }
+        }
+        
+        .signup-container {
+            background: rgba(255,255,255,0.08);
+            backdrop-filter: blur(12px);
+            border-radius: 24px;
+            padding: 40px;
+            width: 100%;
+            max-width: 480px;
+            border: 1px solid rgba(255,255,255,0.15);
+            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+            z-index: 1;
+            margin: auto;
+        }
+        
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .logo h1 {
+            background: linear-gradient(135deg, #00d4ff, #7c3aed);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 28px;
+        }
+        
+        .logo p { color: #8b9dc3; font-size: 12px; }
+        
+        .input-group {
+            margin-bottom: 18px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 6px;
+            color: #00d4ff;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        input {
+            width: 100%;
+            padding: 11px 14px;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 10px;
+            color: white;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #00d4ff;
+            box-shadow: 0 0 8px rgba(0,212,255,0.3);
+        }
+        
+        .password-requirements {
+            font-size: 10px;
+            color: #6b7280;
+            margin-top: 6px;
+            padding-left: 5px;
+        }
+        
+        .requirement {
+            margin: 3px 0;
+        }
+        
+        .requirement.valid { color: #10b981; }
+        .requirement.invalid { color: #ef4444; }
+        
+        button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #00d4ff, #0284c7);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-weight: bold;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            transform: scale(1.02);
+            filter: brightness(1.1);
+        }
+        
+        .error {
+            background: rgba(239,68,68,0.15);
+            color: #ef4444;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 18px;
+            text-align: center;
+            font-size: 12px;
+            border-left: 3px solid #ef4444;
+        }
+        
+        .success {
+            background: rgba(16,185,129,0.15);
+            color: #10b981;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 18px;
+            text-align: center;
+            font-size: 12px;
+            border-left: 3px solid #10b981;
+        }
+        
+        .info {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 12px;
+            color: #6b7280;
+        }
+        
+        .info a {
+            color: #00d4ff;
+            text-decoration: none;
+        }
+        
+        .security-badge {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 20px;
+            font-size: 10px;
+            color: #4b5563;
+            flex-wrap: wrap;
+        }
+        
+        @media (max-width: 480px) {
+            .signup-container {
+                padding: 25px;
+            }
+            .security-badge {
+                flex-direction: column;
+                align-items: center;
+                gap: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="signup-container">
+        <div class="logo">
+            <h1>🛡️ Create Account</h1>
+            <p>Join SIEM Security System</p>
+        </div>
+        
+        {% if error %}
+        <div class="error">❌ {{ error }}</div>
+        {% endif %}
+        
+        {% if success %}
+        <div class="success">✅ {{ success }}</div>
+        {% endif %}
+        
+        <form method="POST">
+            <div class="input-group">
+                <label>👤 Username</label>
+                <input type="text" name="username" placeholder="Choose a username" required autofocus>
+            </div>
+            <div class="input-group">
+                <label>📧 Email</label>
+                <input type="email" name="email" placeholder="your@email.com" required>
+            </div>
+            <div class="input-group">
+                <label>🔐 Password</label>
+                <input type="password" name="password" id="password" placeholder="Create strong password" required>
+                <div class="password-requirements">
+                    <div class="requirement" id="length">❌ At least 8 characters</div>
+                    <div class="requirement" id="uppercase">❌ One uppercase letter</div>
+                    <div class="requirement" id="lowercase">❌ One lowercase letter</div>
+                    <div class="requirement" id="number">❌ One number</div>
+                    <div class="requirement" id="special">❌ One special character (!@#$%^&*)</div>
+                </div>
+            </div>
+            <div class="input-group">
+                <label>🔑 Confirm Password</label>
+                <input type="password" name="confirm_password" id="confirmPassword" placeholder="Confirm your password" required>
+            </div>
+            <button type="submit">Create Account</button>
+        </form>
+        
+        <div class="info">
+            Already have an account? <a href="/login">Login here</a>
+        </div>
+        
+        <div class="security-badge">
+            <span>🔐 SHA-256 Hashed Passwords</span>
+            <span>🔑 2FA Ready</span>
+            <span>🛡️ Brute Force Protection</span>
+        </div>
+    </div>
+    
+    <script>
+        const password = document.getElementById('password');
+        const confirmPassword = document.getElementById('confirmPassword');
+        
+        const lengthReq = document.getElementById('length');
+        const upperReq = document.getElementById('uppercase');
+        const lowerReq = document.getElementById('lowercase');
+        const numberReq = document.getElementById('number');
+        const specialReq = document.getElementById('special');
+        
+        function validatePassword() {
+            const val = password.value;
+            
+            // Length check
+            if (val.length >= 8) {
+                lengthReq.innerHTML = '✅ At least 8 characters';
+                lengthReq.className = 'requirement valid';
+            } else {
+                lengthReq.innerHTML = '❌ At least 8 characters';
+                lengthReq.className = 'requirement invalid';
+            }
+            
+            // Uppercase check
+            if (/[A-Z]/.test(val)) {
+                upperReq.innerHTML = '✅ One uppercase letter';
+                upperReq.className = 'requirement valid';
+            } else {
+                upperReq.innerHTML = '❌ One uppercase letter';
+                upperReq.className = 'requirement invalid';
+            }
+            
+            // Lowercase check
+            if (/[a-z]/.test(val)) {
+                lowerReq.innerHTML = '✅ One lowercase letter';
+                lowerReq.className = 'requirement valid';
+            } else {
+                lowerReq.innerHTML = '❌ One lowercase letter';
+                lowerReq.className = 'requirement invalid';
+            }
+            
+            // Number check
+            if (/[0-9]/.test(val)) {
+                numberReq.innerHTML = '✅ One number';
+                numberReq.className = 'requirement valid';
+            } else {
+                numberReq.innerHTML = '❌ One number';
+                numberReq.className = 'requirement invalid';
+            }
+            
+            // Special character check
+            if (/[!@#$%^&*(),.?":{}|<>]/.test(val)) {
+                specialReq.innerHTML = '✅ One special character';
+                specialReq.className = 'requirement valid';
+            } else {
+                specialReq.innerHTML = '❌ One special character (!@#$%^&*)';
+                specialReq.className = 'requirement invalid';
+            }
+        }
+        
+        password.addEventListener('input', validatePassword);
+        
+        // Confirm password check
+        confirmPassword.addEventListener('input', function() {
+            if (confirmPassword.value !== password.value && password.value.length > 0) {
+                confirmPassword.style.borderColor = '#ef4444';
+            } else if (confirmPassword.value === password.value && password.value.length > 0) {
+                confirmPassword.style.borderColor = '#10b981';
+            } else {
+                confirmPassword.style.borderColor = 'rgba(255,255,255,0.15)';
+            }
+        });
+    </script>
+</body>
+</html>
